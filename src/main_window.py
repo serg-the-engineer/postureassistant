@@ -1,11 +1,16 @@
 import numpy as np
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
-from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QPushButton, QLabel, QComboBox, QSystemTrayIcon, QMenu,
+                             QApplication)
+from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction
 from PyQt6.QtCore import Qt, QThread
 
 from .camera_service import CameraService
 from .processing_service import ProcessingService, PostureStatus
 from .settings_service import SettingsService
+from .notification_service import NotificationService
+from .statistics_service import StatisticsService
+from .statistics_window import StatisticsWindow
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -15,18 +20,35 @@ class MainWindow(QMainWindow):
 
         # --- Services ---
         self.settings_service = SettingsService()
+        self.statistics_service = StatisticsService()
         self.camera_service = CameraService(camera_id=self.settings_service.get("camera_id", 0))
         self.processing_service = ProcessingService(self.settings_service)
         
+        # --- System Tray and Notifications ---
+        self.tray_icon = QSystemTrayIcon(QIcon("assets/icon.png"), self) # Assumes icon exists
+        self.tray_icon.setToolTip("Vibestand Posture Assistant")
+        self.notification_service = NotificationService(self.tray_icon, self.settings_service)
+        self.setup_tray_menu()
+        self.tray_icon.show()
+
         # --- Threading ---
         self.processing_thread = QThread()
         self.processing_service.moveToThread(self.processing_thread)
+        self.notification_service.moveToThread(self.processing_thread) # Can run in the same thread
         self.processing_thread.start()
 
         # --- UI Elements ---
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
+        
+        # Camera selection
+        camera_layout = QHBoxLayout()
+        self.camera_combo = QComboBox()
+        self.populate_camera_list()
+        camera_layout.addWidget(QLabel("Camera:"))
+        camera_layout.addWidget(self.camera_combo)
+        self.layout.addLayout(camera_layout)
 
         self.video_label = QLabel("Camera feed will appear here.")
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -34,26 +56,63 @@ class MainWindow(QMainWindow):
         self.video_label.setStyleSheet("background-color: black; color: white;")
         self.layout.addWidget(self.video_label)
 
+        # Controls
         controls_layout = QHBoxLayout()
         self.start_stop_button = QPushButton("Start")
         self.calibrate_button = QPushButton("Calibrate")
         self.calibrate_button.setEnabled(False)
+        self.stats_button = QPushButton("Statistics")
         self.status_label = QLabel("Status: Not Running")
         font = self.status_label.font(); font.setPointSize(14); self.status_label.setFont(font)
 
         controls_layout.addWidget(self.start_stop_button)
         controls_layout.addWidget(self.calibrate_button)
+        controls_layout.addWidget(self.stats_button)
         controls_layout.addStretch()
         controls_layout.addWidget(self.status_label)
         self.layout.addLayout(controls_layout)
 
-        # --- Connections ---
+        # Connect signals/slots
         self.start_stop_button.clicked.connect(self.toggle_monitoring)
         self.calibrate_button.clicked.connect(self.processing_service.start_calibration)
+        self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
+        self.stats_button.clicked.connect(self.show_statistics)
+        self.tray_icon.activated.connect(self.on_tray_icon_activated)
         
         self.camera_service.frame_ready.connect(self.processing_service.process_frame)
         self.processing_service.processed_frame_ready.connect(self.update_video_feed)
         self.processing_service.status_updated.connect(self.update_status)
+        self.processing_service.status_updated.connect(self.notification_service.handle_status_update)
+        self.processing_service.status_updated.connect(self.statistics_service.handle_status_update)
+
+    def populate_camera_list(self):
+        self.camera_combo.blockSignals(True)
+        self.camera_combo.clear()
+        available_cameras = CameraService.list_available_cameras()
+        if not available_cameras:
+            self.camera_combo.addItem("No cameras found")
+            self.camera_combo.setEnabled(False)
+            self.start_stop_button.setEnabled(False)
+            return
+
+        saved_camera_id = self.settings_service.get("camera_id", 0)
+        current_idx = 0
+        for i, cam_info in enumerate(available_cameras):
+            self.camera_combo.addItem(cam_info['name'], userData=cam_info['id'])
+            if cam_info['id'] == saved_camera_id:
+                current_idx = i
+        
+        self.camera_combo.setCurrentIndex(current_idx)
+        self.on_camera_changed(current_idx)
+        self.camera_combo.blockSignals(False)
+
+    def on_camera_changed(self, index: int):
+        if self.camera_service.isRunning():
+            return
+        cam_id = self.camera_combo.itemData(index)
+        if cam_id is not None:
+            self.camera_service.camera_id = cam_id
+            self.settings_service.set("camera_id", cam_id)
 
     def toggle_monitoring(self):
         if self.camera_service.isRunning():
@@ -61,8 +120,10 @@ class MainWindow(QMainWindow):
             self.camera_service.stop()
             self.start_stop_button.setText("Start")
             self.calibrate_button.setEnabled(False)
+            self.camera_combo.setEnabled(True)
             self.update_status(PostureStatus.NOT_DETECTED)
         else:
+            self.camera_combo.setEnabled(False)
             self.camera_service.start()
             self.processing_service.set_active(True)
             self.start_stop_button.setText("Stop")
@@ -91,8 +152,43 @@ class MainWindow(QMainWindow):
             else:
                 self.status_label.setText("Status: Face Not Detected"); self.status_label.setStyleSheet("color: orange;")
 
+    def setup_tray_menu(self):
+        tray_menu = QMenu()
+        show_action = QAction("Show/Hide", self)
+        show_action.triggered.connect(self.toggle_visibility)
+        tray_menu.addAction(show_action)
+
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self.quit_application)
+        tray_menu.addAction(quit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+
+    def show_statistics(self):
+        # We create a new dialog each time to ensure stats are fresh
+        stats_dialog = StatisticsWindow(self.statistics_service, self)
+        stats_dialog.exec()
+
+    def on_tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.Trigger: # Left click
+            self.toggle_visibility()
+
+    def toggle_visibility(self):
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+            self.activateWindow()
+
     def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage("Still running", "Vibestand is running in the system tray.", 
+                                 QSystemTrayIcon.MessageIcon.Information, 2000)
+
+    def quit_application(self):
         self.camera_service.stop()
+        self.statistics_service.close()
         self.processing_thread.quit()
         self.processing_thread.wait()
-        super().closeEvent(event)
+        QApplication.instance().quit()

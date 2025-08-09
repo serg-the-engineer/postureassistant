@@ -1,3 +1,5 @@
 PyQt6
 opencv-python
 numpy
+pygrabber; platform_system == "Windows"
+matplotlib

@@ -31,7 +31,9 @@ class SettingsService:
         return {
             "version": 1,
             "camera_id": 0,
-            "calibration_data": {"reference_y": None, "tolerance_pixels": 50}
+            "calibration_data": {"reference_y": None, "tolerance_pixels": 50},
+            "notifications_enabled": True,
+            "notification_delay_seconds": 10
         }
 
     def get_calibration_data(self) -> Dict[str, Any]:

@@ -45,8 +45,10 @@ class ProcessingService(QObject):
             x, y, w, h = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
             
             if self._is_calibrating:
-                self.calibration_data['reference_y'] = y
-                self.settings.set_calibration_data(y, self.calibration_data['tolerance_pixels'])
+                # Cast numpy.int32 to python int to avoid JSON serialization error
+                ref_y_int = int(y)
+                self.calibration_data['reference_y'] = ref_y_int
+                self.settings.set_calibration_data(ref_y_int, self.calibration_data['tolerance_pixels'])
                 self._is_calibrating = False
 
             ref_y = self.calibration_data.get('reference_y')

@@ -54,6 +54,9 @@ if [ ! -f "$HAARCASCADE_FILE" ]; then
     curl -L -o "$HAARCASCADE_FILE" "$HAARCASCADE_URL" || print_error "Failed to download Haar Cascade file."
 fi
 
+print_info "NOTE: The application uses a tray icon from 'assets/icon.png'."
+print_info "Please provide a PNG image at that location for the best experience."
+
 # 5. Run the application
 print_info "Setup complete. Running the application..."
 $PYTHON_CMD -m src
