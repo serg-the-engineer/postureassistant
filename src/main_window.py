@@ -30,6 +30,7 @@ from .settings_service import SettingsService
 from .notification_service import NotificationService
 from .statistics_service import StatisticsService
 from .statistics_window import StatisticsWindow
+from .settings_window import SettingsWindow
 from .utils import resource_path
 
 
@@ -97,6 +98,7 @@ class MainWindow(QMainWindow):
         self.calibrate_button = QPushButton("Calibrate")
         self.calibrate_button.setEnabled(False)
         self.stats_button = QPushButton("Statistics")
+        self.settings_button = QPushButton("Settings")
 
         # Status label
         self.status_label = QLabel("Status: Not Running")
@@ -108,6 +110,7 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.start_stop_button)
         controls_layout.addWidget(self.calibrate_button)
         controls_layout.addWidget(self.stats_button)
+        controls_layout.addWidget(self.settings_button)
         controls_layout.addStretch()
         controls_layout.addWidget(self.status_label)
 
@@ -118,6 +121,7 @@ class MainWindow(QMainWindow):
         self.start_stop_button.clicked.connect(self.toggle_monitoring)
         self.calibrate_button.clicked.connect(self.processing_service.start_calibration)
         self.stats_button.clicked.connect(self.show_statistics)
+        self.settings_button.clicked.connect(self.show_settings)
         self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
@@ -241,11 +245,21 @@ class MainWindow(QMainWindow):
         show_action.triggered.connect(self.toggle_visibility)
         tray_menu.addAction(show_action)
 
+        settings_action = QAction("Settings", self)
+        settings_action.triggered.connect(self.show_settings)
+        tray_menu.addAction(settings_action)
+
+        tray_menu.addSeparator()
+
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self.quit_application)
         tray_menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(tray_menu)
+
+    def show_settings(self):
+        settings_dialog = SettingsWindow(self.settings_service, self)
+        settings_dialog.exec()
 
     def show_statistics(self):
         # We create a new dialog each time to ensure stats are fresh

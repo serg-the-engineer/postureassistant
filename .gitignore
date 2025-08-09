@@ -41,6 +41,7 @@ statistics.db
 # Local development
 .env
 .env.local
+*.dmg
 
 # Logs
 *.log

@@ -24,7 +24,6 @@ class ProcessingService(QObject):
         if self.face_cascade.empty():
             raise IOError("Could not load haarcascade_frontalface_default.xml")
 
-        self.calibration_data = self.settings.get_calibration_data()
         self._is_calibrating = False
 
     def set_active(self, active: bool):
@@ -51,15 +50,18 @@ class ProcessingService(QObject):
             if self._is_calibrating:
                 # Cast numpy.int32 to python int to avoid JSON serialization error
                 ref_y_int = int(y)
-                self.calibration_data["reference_y"] = ref_y_int
+                current_tolerance = self.settings.get_calibration_data().get("tolerance_pixels", 50)
                 self.settings.set_calibration_data(
-                    ref_y_int, self.calibration_data["tolerance_pixels"]
+                    ref_y_int, current_tolerance
                 )
                 self._is_calibrating = False
+                # Re-fetch the data to get the new reference_y for this frame's processing
+                calibration_data = self.settings.get_calibration_data()
 
-            ref_y = self.calibration_data.get("reference_y")
+            calibration_data = self.settings.get_calibration_data()
+            ref_y = calibration_data.get("reference_y")
             if ref_y is not None:
-                tolerance = self.calibration_data.get("tolerance_pixels", 50)
+                tolerance = calibration_data.get("tolerance_pixels", 50)
                 status = (
                     PostureStatus.CORRECT
                     if abs(y - ref_y) <= tolerance
@@ -74,9 +76,10 @@ class ProcessingService(QObject):
         self.processed_frame_ready.emit(output_frame)
 
     def _draw_overlays(self, frame: np.ndarray):
-        ref_y = self.calibration_data.get("reference_y")
+        calibration_data = self.settings.get_calibration_data()
+        ref_y = calibration_data.get("reference_y")
         if ref_y is not None:
-            tolerance = self.calibration_data.get("tolerance_pixels", 50)
+            tolerance = calibration_data.get("tolerance_pixels", 50)
             w = frame.shape[1]
             cv2.line(
                 frame, (0, ref_y - tolerance), (w, ref_y - tolerance), (0, 255, 0), 1
