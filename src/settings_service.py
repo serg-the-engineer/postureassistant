@@ -35,7 +35,7 @@ class SettingsService:
             "calibration_data": {"reference_y": None, "tolerance_pixels": 50},
             "notifications_enabled": True,
             "notification_delay_seconds": 1800,
-            "notification_sound_file": "assets/wilhelm.mp3",
+            "notification_sound_file": "assets/wilhelm.ogg",
         }
 
     def get_calibration_data(self) -> Dict[str, Any]:

@@ -16,7 +16,7 @@ class NotificationService(QObject):
         self.media_player = QMediaPlayer(self)
         self.audio_output = QAudioOutput(self)
         self.media_player.setAudioOutput(self.audio_output)
-        sound_file = self.settings.get("notification_sound_file", "assets/wilhelm.mp3")
+        sound_file = self.settings.get("notification_sound_file", "assets/wilhelm.ogg")
         self.media_player.setSource(QUrl.fromLocalFile(sound_file))
 
     def handle_status_update(self, status: PostureStatus):
@@ -36,14 +36,10 @@ class NotificationService(QObject):
             self.tray_icon.showMessage(
                 "Check Your Posture!",
                 "You have been sitting incorrectly for a while. Please sit up straight.",
-                QSystemTrayIcon.MessageIcon.Warning,
+                QSystemTrayIcon.MessageIcon.Information,
                 3000,  # msecs
             )
-            if self.media_player and self.media_player.source().isValid():
-                # If it's already playing, stop and play from the beginning.
-                if (
-                    self.media_player.playbackState()
-                    == QMediaPlayer.PlaybackState.PlayingState
-                ):
-                    self.media_player.stop()
+            if self.media_player.source().isValid():
+                # Stop and play to ensure the sound restarts from the beginning.
+                self.media_player.stop()
                 self.media_player.play()
