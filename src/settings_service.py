@@ -2,6 +2,7 @@ import json
 import os
 from typing import Dict, Any
 
+
 class SettingsService:
     def __init__(self, filename: str = "settings.json"):
         self.filepath = filename
@@ -10,14 +11,14 @@ class SettingsService:
     def _load(self) -> Dict[str, Any]:
         if os.path.exists(self.filepath):
             try:
-                with open(self.filepath, 'r') as f:
+                with open(self.filepath, "r") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 pass
         return self._get_default_settings()
 
     def save(self):
-        with open(self.filepath, 'w') as f:
+        with open(self.filepath, "w") as f:
             json.dump(self.settings, f, indent=2)
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -33,11 +34,16 @@ class SettingsService:
             "camera_id": 0,
             "calibration_data": {"reference_y": None, "tolerance_pixels": 50},
             "notifications_enabled": True,
-            "notification_delay_seconds": 10
+            "notification_delay_seconds": 1800,
+            "notification_sound_file": "assets/wilhelm.mp3",
         }
 
     def get_calibration_data(self) -> Dict[str, Any]:
-        return self.get("calibration_data", self._get_default_settings()["calibration_data"])
+        return self.get(
+            "calibration_data", self._get_default_settings()["calibration_data"]
+        )
 
     def set_calibration_data(self, ref_y: int, tolerance: int):
-        self.set("calibration_data", {"reference_y": ref_y, "tolerance_pixels": tolerance})
+        self.set(
+            "calibration_data", {"reference_y": ref_y, "tolerance_pixels": tolerance}
+        )

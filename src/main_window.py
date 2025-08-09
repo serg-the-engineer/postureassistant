@@ -11,7 +11,17 @@ from PyQt6.QtWidgets import (
     QMenu,
     QApplication,
 )
-from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QShowEvent, QHideEvent
+from PyQt6.QtGui import (
+    QImage,
+    QPixmap,
+    QIcon,
+    QAction,
+    QPainter,
+    QColor,
+    QBrush,
+    QShowEvent,
+    QHideEvent,
+)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from .camera_service import CameraService
@@ -24,9 +34,10 @@ from .statistics_window import StatisticsWindow
 
 class MainWindow(QMainWindow):
     visibility_changed = pyqtSignal(bool)
+
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Vibestand - Posture Assistant")
+        self.setWindowTitle("Posture Assistant")
         self.setGeometry(100, 100, 800, 600)
 
         # --- Services ---
@@ -41,7 +52,7 @@ class MainWindow(QMainWindow):
         self.tray_icon = QSystemTrayIcon(
             QIcon("assets/icon.png"), self
         )  # Assumes icon exists
-        self.tray_icon.setToolTip("Vibestand Posture Assistant")
+        self.tray_icon.setToolTip("Posture Assistant")
         self.notification_service = NotificationService(
             self.tray_icon, self.settings_service
         )
