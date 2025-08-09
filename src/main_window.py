@@ -36,6 +36,7 @@ from .utils import resource_path
 
 class MainWindow(QMainWindow):
     visibility_changed = pyqtSignal(bool)
+    monitoring_state_changed = pyqtSignal(bool)
 
     def __init__(self):
         super().__init__()
@@ -56,13 +57,6 @@ class MainWindow(QMainWindow):
             QIcon(resource_path("assets/icon.png")), parent=self
         )
         self.tray_icon.setToolTip("Posture Assistant")
-        self.tray_icon.activated.connect(
-            lambda reason: (
-                self.show()
-                if reason == QSystemTrayIcon.ActivationReason.DoubleClick
-                else None
-            )
-        )
         self.setup_tray_menu()
         self.tray_icon.show()
 
@@ -144,7 +138,9 @@ class MainWindow(QMainWindow):
 
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
-        self.camera_service.frame_ready.connect(self.processing_service.process_frame)
+        self.camera_service.frame_ready.connect(
+            self.processing_service.update_latest_frame
+        )
         self.processing_service.processed_frame_ready.connect(self.update_video_feed)
         self.processing_service.status_updated.connect(self.update_status)
         self.processing_service.status_updated.connect(
@@ -154,6 +150,8 @@ class MainWindow(QMainWindow):
             self.statistics_service.handle_status_update
         )
         self.visibility_changed.connect(self.camera_service.on_visibility_changed)
+        self.visibility_changed.connect(self.processing_service.on_visibility_changed)
+        self.monitoring_state_changed.connect(self.processing_service.set_active)
 
         # Populate camera list after all connections are set up
         self.populate_camera_list()
@@ -189,7 +187,7 @@ class MainWindow(QMainWindow):
 
     def toggle_monitoring(self):
         if self.camera_service.isRunning():
-            self.processing_service.set_active(False)
+            self.monitoring_state_changed.emit(False)
             self.camera_service.stop()
             self.start_stop_button.setText("Start")
             self.calibrate_button.setEnabled(False)
@@ -198,7 +196,7 @@ class MainWindow(QMainWindow):
         else:
             self.camera_combo.setEnabled(False)
             self.camera_service.start()
-            self.processing_service.set_active(True)
+            self.monitoring_state_changed.emit(True)
             self.start_stop_button.setText("Stop")
             self.calibrate_button.setEnabled(True)
 
@@ -333,14 +331,15 @@ class MainWindow(QMainWindow):
         stats_dialog.exec()
 
     def on_tray_icon_activated(self, reason):
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:  # Left click
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
             self.toggle_visibility()
 
     def toggle_visibility(self):
         if self.isVisible():
             self.hide()
         else:
-            self.show()
+            self.showNormal()
+            self.raise_()
             self.activateWindow()
 
     def showEvent(self, event: QShowEvent):

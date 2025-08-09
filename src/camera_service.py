@@ -27,7 +27,7 @@ class CameraService(QThread):
             if ret:
                 self.frame_ready.emit(cv2.flip(frame, 1))
 
-            sleep_duration = 100 if self._is_ui_visible else 1000
+            sleep_duration = 20 if self._is_ui_visible else 1000
             self.msleep(sleep_duration)  # Dynamic FPS
 
         if self.cap:
@@ -76,11 +76,11 @@ class CameraService(QThread):
                 # This method is generally reliable on Linux but may list non-camera devices.
                 video_devices = [
                     dev
-                    for dev in os.listdir('/sys/class/video4linux')
-                    if dev.startswith('video')
+                    for dev in os.listdir("/sys/class/video4linux")
+                    if dev.startswith("video")
                 ]
                 for dev_name in sorted(video_devices):
-                    index = int(dev_name.replace('video', ''))
+                    index = int(dev_name.replace("video", ""))
                     platform_specific_cameras.append(
                         {"id": index, "name": f"Camera {index}"}
                     )
