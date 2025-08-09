@@ -9,7 +9,7 @@ The posture analysis is simple, based on a subjective observation: when sitting 
 ## ✨ Key Features
 
 *   **Real-time Monitoring:** Tracks your head position using a webcam at a low FPS to conserve resources.
-*   **Smart Notifications:** The app will only send a desktop notification if you've been sitting incorrectly for a prolonged time.
+*   **Smart Notifications:** The app can start blinking with icon status in unobtrusive way firstly, and send notification with sound after a while. Timer is configurable.
 *   **Statistics:** View your daily statistics in a pie chart to see how long you've maintained a correct posture.
 *   **Background Operation:** The application minimizes to the system tray and stays out of your way.
 
@@ -34,6 +34,7 @@ Go to the project's **[Releases](https://github.com/serg-the-engineer/postureass
 *   Download the `PostureAssistant.dmg` file.
 *   Open the `.dmg` file and drag the `PostureAssistant` icon into your `Applications` folder.
 *   On the first launch, you may need to allow the application from an unidentified developer in `System Settings` -> `Privacy & Security`.
+*   After selection camera and staring OS will ask you to allow access to the camera.
 
 ---
 
@@ -85,6 +86,11 @@ This method is suitable if you want to modify the code or run it in your develop
 
 ---
 
+## 🐛 Known issues
+
+*   After OS permissions approve, camera may not work. You need to reselect it.
+*   Sometimes camera names can be mixed up, sorry for that.
+
 ## 💻 Tech Stack
 
 *   **Language:** Python 3
@@ -98,7 +104,7 @@ This method is suitable if you want to modify the code or run it in your develop
 
 ## ⚙️ How It Works
 
-The application uses Haar Cascades from the OpenCV library to detect a face in the video stream. During calibration, it records the vertical coordinate (Y) of the center of the face. While monitoring, it compares the current Y-coordinate with the reference one. If the deviation exceeds a set threshold, the posture is considered incorrect. Data on the time spent in each state is saved to a local SQLite database for later analysis.
+The application uses Haar Cascades from the OpenCV library to detect a face in the video stream. During calibration, it records the vertical coordinate (Y) of the center of the face. While monitoring, it compares the current Y-coordinate with the reference one. If the deviation exceeds a set threshold, the posture is considered incorrect. It works good with static camera positioning on separate monitors.
 
 ---
 
