@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QGroupBox,
 )
+from PyQt6.QtCore import Qt
 
 
 class SettingsWindow(QDialog):
@@ -24,6 +25,7 @@ class SettingsWindow(QDialog):
         # --- Processing Settings ---
         processing_group = QGroupBox("Processing")
         processing_layout = QFormLayout()
+        processing_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.tolerance_spinbox = QSpinBox()
         self.tolerance_spinbox.setRange(10, 200)
@@ -36,9 +38,10 @@ class SettingsWindow(QDialog):
         # --- Notifications Settings ---
         notifications_group = QGroupBox("Notifications")
         notifications_layout = QFormLayout()
+        notifications_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        self.notifications_enabled_checkbox = QCheckBox("Enable Notifications")
-        notifications_layout.addRow(self.notifications_enabled_checkbox)
+        self.notifications_enabled_checkbox = QCheckBox()
+        notifications_layout.addRow("Enable Notifications:", self.notifications_enabled_checkbox)
 
         self.delay_spinbox = QSpinBox()
         self.delay_spinbox.setRange(10, 86400)  # 1 second to 24 hours
