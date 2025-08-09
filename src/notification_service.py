@@ -1,6 +1,8 @@
-from PyQt6.QtCore import QObject, QTimer
+from PyQt6.QtCore import QObject, QTimer, QUrl
 from PyQt6.QtWidgets import QSystemTrayIcon
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from .processing_service import PostureStatus
+
 
 class NotificationService(QObject):
     def __init__(self, tray_icon: QSystemTrayIcon, settings_service, parent=None):
@@ -11,6 +13,11 @@ class NotificationService(QObject):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.show_notification)
         self.current_status = PostureStatus.NOT_DETECTED
+        self.media_player = QMediaPlayer(self)
+        self.audio_output = QAudioOutput(self)
+        self.media_player.setAudioOutput(self.audio_output)
+        sound_file = self.settings.get("notification_sound_file", "assets/wilhelm.mp3")
+        self.media_player.setSource(QUrl.fromLocalFile(sound_file))
 
     def handle_status_update(self, status: PostureStatus):
         self.current_status = status
@@ -23,10 +30,20 @@ class NotificationService(QObject):
                 self.timer.stop()
 
     def show_notification(self):
-        if self.current_status == PostureStatus.INCORRECT and self.settings.get("notifications_enabled", True):
+        if self.current_status == PostureStatus.INCORRECT and self.settings.get(
+            "notifications_enabled", True
+        ):
             self.tray_icon.showMessage(
                 "Check Your Posture!",
                 "You have been sitting incorrectly for a while. Please sit up straight.",
                 QSystemTrayIcon.MessageIcon.Warning,
-                3000  # msecs
+                3000,  # msecs
             )
+            if self.media_player and self.media_player.source().isValid():
+                # If it's already playing, stop and play from the beginning.
+                if (
+                    self.media_player.playbackState()
+                    == QMediaPlayer.PlaybackState.PlayingState
+                ):
+                    self.media_player.stop()
+                self.media_player.play()

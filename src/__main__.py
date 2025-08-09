@@ -9,6 +9,7 @@ from .main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(QIcon("assets/vibestand.png"))
     app.setApplicationName("Vibestand")
     app.setApplicationVersion("1.0.0")
