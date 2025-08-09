@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QWidget,
                              QHBoxLayout, QSizePolicy)
-from PyQt6.QtCore import Qt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
@@ -10,23 +10,15 @@ class StatisticsWindow(QDialog):
     def __init__(self, stats_service, parent=None):
         super().__init__(parent)
         self.stats_service = stats_service
-        self.setWindowTitle("Today's Posture Statistics")
+        self.setWindowTitle("Today's Statistics")
         self.setMinimumSize(500, 400)
-        
-        layout = QVBoxLayout()
-        
-        # Add a figure canvas for the chart
-        self.figure = Figure(figsize=(6, 4), dpi=100)
-        self.canvas = FigureCanvas(self.figure)
+
+        layout = QVBoxLayout(self)
+        self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
         layout.addWidget(self.canvas)
         
-        # Add summary labels
         self.summary_label = QLabel("Loading...")
         layout.addWidget(self.summary_label)
-        
-        refresh_button = QPushButton("Refresh")
-        refresh_button.clicked.connect(self.update_stats)
-        layout.addWidget(refresh_button)
 
         self.update_stats()
         
@@ -35,24 +27,38 @@ class StatisticsWindow(QDialog):
     
     def update_stats(self):
         summary = self.stats_service.get_summary_for_today()
-        correct_s = summary.get('CORRECT', 0.0)
-        incorrect_s = summary.get('INCORRECT', 0.0)
-        total = correct_s + incorrect_s
-        
-        if total > 0:
-            # Calculate percentages
-            correct_pct = (correct_s / total) * 100
-            incorrect_pct = 100 - correct_pct
-            
-            # Update summary label
-            self.summary_label.setText(
-                f"Today's Posture Summary:\n"
-                f"• Correct Posture: {correct_s/60:.1f} minutes ({correct_pct:.1f}%)\n"
-                f"• Incorrect Posture: {incorrect_s/60:.1f} minutes ({incorrect_pct:.1f}%)"
-            )
+        correct_s = summary.get('CORRECT', 0)
+        incorrect_s = summary.get('INCORRECT', 0)
+
+        labels = []
+        sizes = []
+        colors = []
+
+        if correct_s > 0:
+            labels.append('Correct')
+            sizes.append(correct_s)
+            colors.append('green')
+        if incorrect_s > 0:
+            labels.append('Incorrect')
+            sizes.append(incorrect_s)
+            colors.append('red')
+
+        self.canvas.axes.clear()
+        if not sizes:
+            self.canvas.axes.text(0.5, 0.5, 'No data for today yet.', ha='center', va='center')
+            self.summary_label.setText("Track your posture to see statistics here.")
         else:
-            # No data available
-            self.summary_label.setText("No posture data available for today.")
+            self.canvas.axes.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors)
+            self.canvas.axes.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+            correct_m = correct_s / 60
+            incorrect_m = incorrect_s / 60
+            self.summary_label.setText(
+                f"Time with Correct Posture: {correct_m:.1f} minutes\n"
+                f"Time with Incorrect Posture: {incorrect_m:.1f} minutes"
+            )
+        
+        self.canvas.draw()
     
     def update_chart(self):
         """Update the chart with the latest statistics."""

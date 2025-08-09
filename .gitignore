@@ -36,6 +36,7 @@ ENV/
 # Project specific
 settings.json
 assets/haarcascade_frontalface_default.xml
+statistics.db
 
 # Local development
 .env
@@ -56,6 +57,7 @@ htmlcov/
 *.pyc
 *.pyo
 *.pyd
+statistics.db
 
 # Distribution / packaging
 .Python

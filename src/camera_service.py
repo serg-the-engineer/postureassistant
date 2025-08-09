@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 import sys
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -13,22 +14,21 @@ class CameraService(QThread):
         self._is_running = False
 
     def run(self):
-        self.cap = cv2.VideoCapture(self.camera_id)
+        if self.cap is None:
+            self.cap = cv2.VideoCapture(self.camera_id)
         if not self.cap.isOpened():
-            print(f"Error: Could not open camera {self.camera_id}")
-            return
+            self.cap.open(self.camera_id)
 
         self._is_running = True
         while self._is_running:
-            if not self._is_running:
-                if self.cap:
-                    self.cap.release()
-                    self.cap = None
-                break
             ret, frame = self.cap.read()
             if ret:
                 self.frame_ready.emit(cv2.flip(frame, 1))
             self.msleep(100)  # Limit to ~10 FPS
+
+        if self.cap:
+            self.cap.release()
+            self.cap = None
 
     def stop(self):
         self._is_running = False
@@ -54,7 +54,7 @@ class CameraService(QThread):
                     return available_cameras
             except (ImportError, Exception) as e:
                 print(f"INFO: Could not use pygrabber ({e}), falling back to index-based camera names.")
-        
+
         elif sys.platform == "darwin": # macOS
             try:
                 from AVFoundation import AVCaptureDevice, AVMediaTypeVideo
@@ -66,7 +66,21 @@ class CameraService(QThread):
             except (ImportError, Exception) as e:
                 print(f"INFO: Could not use AVFoundation ({e}), falling back to index-based camera names.")
 
-        # Fallback for Linux or if platform-specific methods fail
+        elif sys.platform.startswith("linux"):
+            try:
+                video_devices = [dev for dev in os.listdir('/sys/class/video4linux') if dev.startswith('video')]
+                for dev_name in sorted(video_devices):
+                    dev_path = os.path.join('/sys/class/video4linux', dev_name)
+                    with open(os.path.join(dev_path, 'name'), 'r') as f:
+                        name = f.read().strip()
+                    index = int(dev_name.replace('video', ''))
+                    available_cameras.append({'id': index, 'name': f"{name} ({dev_name})"})
+                if available_cameras:
+                    return available_cameras
+            except (IOError, FileNotFoundError, ValueError) as e:
+                print(f"INFO: Could not read from /sys/class/video4linux ({e}), falling back to index-based camera names.")
+
+        # Fallback if platform-specific methods fail or for other OS
         for i in range(limit):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
