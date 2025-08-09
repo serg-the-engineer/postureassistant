@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import (
     QMenu,
     QApplication,
 )
-from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction, QPainter, QColor, QBrush
-from PyQt6.QtCore import Qt, QThread
+from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QShowEvent, QHideEvent
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from .camera_service import CameraService
 from .processing_service import ProcessingService, PostureStatus
@@ -23,6 +23,7 @@ from .statistics_window import StatisticsWindow
 
 
 class MainWindow(QMainWindow):
+    visibility_changed = pyqtSignal(bool)
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Vibestand - Posture Assistant")
@@ -114,6 +115,7 @@ class MainWindow(QMainWindow):
         self.processing_service.status_updated.connect(
             self.statistics_service.handle_status_update
         )
+        self.visibility_changed.connect(self.camera_service.on_visibility_changed)
 
         # Populate camera list after all connections are set up
         self.populate_camera_list()
@@ -245,6 +247,16 @@ class MainWindow(QMainWindow):
         else:
             self.show()
             self.activateWindow()
+
+    def showEvent(self, event: QShowEvent):
+        """Override show event to notify services."""
+        super().showEvent(event)
+        self.visibility_changed.emit(True)
+
+    def hideEvent(self, event: QHideEvent):
+        """Override hide event to notify services."""
+        super().hideEvent(event)
+        self.visibility_changed.emit(False)
 
     def closeEvent(self, event):
         event.ignore()

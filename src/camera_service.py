@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 import sys
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
 
 class CameraService(QThread):
     frame_ready = pyqtSignal(np.ndarray)
@@ -12,6 +12,7 @@ class CameraService(QThread):
         self.camera_id = camera_id
         self.cap = None
         self._is_running = False
+        self._is_ui_visible = True  # Assume UI is visible on start
 
     def run(self):
         if self.cap is None:
@@ -24,7 +25,9 @@ class CameraService(QThread):
             ret, frame = self.cap.read()
             if ret:
                 self.frame_ready.emit(cv2.flip(frame, 1))
-            self.msleep(100)  # Limit to ~10 FPS
+            
+            sleep_duration = 100 if self._is_ui_visible else 1000
+            self.msleep(sleep_duration)  # Dynamic FPS
 
         if self.cap:
             self.cap.release()
@@ -33,6 +36,11 @@ class CameraService(QThread):
     def stop(self):
         self._is_running = False
         self.wait()
+
+    @pyqtSlot(bool)
+    def on_visibility_changed(self, is_visible: bool):
+        """Slot to update FPS based on UI visibility."""
+        self._is_ui_visible = is_visible
 
     @staticmethod
     def list_available_cameras(limit=10) -> list[dict]:
