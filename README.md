@@ -88,7 +88,6 @@ This method is suitable if you want to modify the code or run it in your develop
 
 ## 🐛 Known issues
 
-*   After OS permissions approve, camera may not work. You need to reselect it.
 *   Sometimes camera names can be mixed up, sorry for that.
 
 ## 💻 Tech Stack

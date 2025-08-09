@@ -7,6 +7,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
 
 class CameraService(QThread):
     frame_ready = pyqtSignal(np.ndarray)
+    camera_started = pyqtSignal(bool)
 
     def __init__(self, camera_id=0, parent=None):
         super().__init__(parent)
@@ -21,7 +22,15 @@ class CameraService(QThread):
         if not self.cap.isOpened():
             self.cap.open(self.camera_id)
 
+        if not self.cap.isOpened():
+            self.camera_started.emit(False)
+            if self.cap:
+                self.cap.release()
+                self.cap = None
+            return
+
         self._is_running = True
+        self.camera_started.emit(True)
         while self._is_running:
             ret, frame = self.cap.read()
             if ret:

@@ -140,6 +140,9 @@ class MainWindow(QMainWindow):
         self.camera_service.frame_ready.connect(
             self.processing_service.update_latest_frame
         )
+        self.camera_service.camera_started.connect(
+            self.on_camera_started
+        )
         self.processing_service.processed_frame_ready.connect(self.update_video_feed)
         self.processing_service.status_updated.connect(self.update_status)
         self.processing_service.status_updated.connect(
@@ -192,9 +195,27 @@ class MainWindow(QMainWindow):
             self.update_status(PostureStatus.NOT_DETECTED)
         else:
             self.camera_combo.setEnabled(False)
+            self.start_stop_button.setEnabled(False)
+            self.start_stop_button.setText("Starting...")
+            # Reset label in case of previous error
+            self.video_label.setText("Camera feed will appear here.")
+            self.video_label.setStyleSheet("background-color: black; color: white;")
             self.camera_service.start()
+
+    def on_camera_started(self, success: bool):
+        """Handles the result of the camera starting attempt."""
+        self.start_stop_button.setEnabled(True)
+        if success:
             self.start_stop_button.setText("Stop")
             self.calibrate_button.setEnabled(True)
+        else:
+            self.start_stop_button.setText("Start")
+            self.camera_combo.setEnabled(True)
+            self.calibrate_button.setEnabled(False)
+            self.video_label.setText(
+                "Failed to start camera. Check permissions or select another camera."
+            )
+            self.video_label.setStyleSheet("background-color: black; color: red;")
 
     def update_video_feed(self, frame: np.ndarray):
         h, w, ch = frame.shape
