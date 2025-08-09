@@ -9,9 +9,10 @@ from .main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
+    app.setOrganizationName("SergTheEngineer")
+    app.setApplicationName("PostureAssistant")
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(QIcon("assets/vibestand.png"))
-    app.setApplicationName("Vibestand")
     app.setApplicationVersion("1.0.0")
     try:
         window = MainWindow()

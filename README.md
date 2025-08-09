@@ -25,7 +25,7 @@ This is the easiest way to get started.
 
 Go to the project's **[Releases](https://github.com/serg-the-engineer/postureassistant/releases)** page.
 
-#### **Windows**
+#### **Windows** (In progress)
 *   Download the `PostureAssistant-Setup.exe` file.
 *   Run the installer and follow the on-screen instructions.
 *   After installation, find the Posture Assistant shortcut in the Start Menu or on your desktop.
