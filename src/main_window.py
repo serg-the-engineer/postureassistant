@@ -71,16 +71,19 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
 
         # Video display
         self.video_label = QLabel("Camera feed will appear here.")
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setMinimumSize(640, 480)
         self.video_label.setStyleSheet("background-color: black; color: white;")
-        self.layout.addWidget(self.video_label)
+        self.layout.addWidget(self.video_label, 1)
 
         # Controls
         controls_layout = QHBoxLayout()
+        controls_layout.setContentsMargins(15, 5, 15, 5)
 
         # Camera selection
         controls_layout.addWidget(QLabel("Camera:"))
