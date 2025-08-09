@@ -27,7 +27,7 @@ class CameraService(QThread):
             if ret:
                 self.frame_ready.emit(cv2.flip(frame, 1))
 
-            sleep_duration = 20 if self._is_ui_visible else 1000
+            sleep_duration = 25 if self._is_ui_visible else 1500
             self.msleep(sleep_duration)  # Dynamic FPS
 
         if self.cap:

@@ -36,7 +36,6 @@ from .utils import resource_path
 
 class MainWindow(QMainWindow):
     visibility_changed = pyqtSignal(bool)
-    monitoring_state_changed = pyqtSignal(bool)
 
     def __init__(self):
         super().__init__()
@@ -151,7 +150,6 @@ class MainWindow(QMainWindow):
         )
         self.visibility_changed.connect(self.camera_service.on_visibility_changed)
         self.visibility_changed.connect(self.processing_service.on_visibility_changed)
-        self.monitoring_state_changed.connect(self.processing_service.set_active)
 
         # Populate camera list after all connections are set up
         self.populate_camera_list()
@@ -187,7 +185,6 @@ class MainWindow(QMainWindow):
 
     def toggle_monitoring(self):
         if self.camera_service.isRunning():
-            self.monitoring_state_changed.emit(False)
             self.camera_service.stop()
             self.start_stop_button.setText("Start")
             self.calibrate_button.setEnabled(False)
@@ -196,7 +193,6 @@ class MainWindow(QMainWindow):
         else:
             self.camera_combo.setEnabled(False)
             self.camera_service.start()
-            self.monitoring_state_changed.emit(True)
             self.start_stop_button.setText("Stop")
             self.calibrate_button.setEnabled(True)
 
@@ -305,8 +301,8 @@ class MainWindow(QMainWindow):
 
     def setup_tray_menu(self):
         tray_menu = QMenu()
-        show_action = QAction("Show/Hide", self)
-        show_action.triggered.connect(self.toggle_visibility)
+        show_action = QAction("Show", self)
+        show_action.triggered.connect(self.show_and_activate_window)
         tray_menu.addAction(show_action)
 
         settings_action = QAction("Settings", self)
@@ -331,16 +327,17 @@ class MainWindow(QMainWindow):
         stats_dialog.exec()
 
     def on_tray_icon_activated(self, reason):
-        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
-            self.toggle_visibility()
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self.show_and_activate_window()
 
-    def toggle_visibility(self):
-        if self.isVisible():
-            self.hide()
-        else:
-            self.showNormal()
-            self.raise_()
-            self.activateWindow()
+    def show_and_activate_window(self):
+        """Shows the window, brings it to the front, and activates it."""
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
 
     def showEvent(self, event: QShowEvent):
         """Override show event to notify services."""
