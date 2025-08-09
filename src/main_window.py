@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
         )
         self.processing_service = ProcessingService(self.settings_service)
         self.current_status = PostureStatus.NOT_DETECTED
+        self.previous_status = PostureStatus.NOT_DETECTED
 
         # --- System Tray and Notifications ---
         self.tray_icon = QSystemTrayIcon(
@@ -301,6 +302,7 @@ class MainWindow(QMainWindow):
                 self.status_label.setStyleSheet("color: orange;")
 
     def update_status(self, status: PostureStatus):
+        self.previous_status = self.current_status
         self.current_status = status
 
         # --- Blinking Logic ---
@@ -317,7 +319,14 @@ class MainWindow(QMainWindow):
                 self._stop_blinking()
 
         # --- UI Updates ---
-        self._update_tray_icon(status)
+        # To reduce flickering, show red icon only on the second consecutive 'INCORRECT' status.
+        tray_status = status
+        if status == PostureStatus.INCORRECT and self.previous_status != PostureStatus.INCORRECT:
+            # This is the first detection of incorrect posture.
+            # Keep the tray icon green to avoid flickering on false positives.
+            tray_status = PostureStatus.CORRECT
+
+        self._update_tray_icon(tray_status)
         self._update_status_label(status)
 
     def setup_tray_menu(self):
