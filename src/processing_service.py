@@ -50,10 +50,10 @@ class ProcessingService(QObject):
             if self._is_calibrating:
                 # Cast numpy.int32 to python int to avoid JSON serialization error
                 ref_y_int = int(y)
-                current_tolerance = self.settings.get_calibration_data().get("tolerance_pixels", 50)
-                self.settings.set_calibration_data(
-                    ref_y_int, current_tolerance
+                current_tolerance = self.settings.get_calibration_data().get(
+                    "tolerance_pixels", 50
                 )
+                self.settings.set_calibration_data(ref_y_int, current_tolerance)
                 self._is_calibrating = False
                 # Re-fetch the data to get the new reference_y for this frame's processing
                 calibration_data = self.settings.get_calibration_data()
@@ -82,9 +82,9 @@ class ProcessingService(QObject):
             tolerance = calibration_data.get("tolerance_pixels", 50)
             w = frame.shape[1]
             cv2.line(
-                frame, (0, ref_y - tolerance), (w, ref_y - tolerance), (0, 255, 0), 1
+                frame, (0, ref_y - tolerance), (w, ref_y - tolerance), (0, 255, 0), 2
             )
             cv2.line(
-                frame, (0, ref_y + tolerance), (w, ref_y + tolerance), (0, 255, 0), 1
+                frame, (0, ref_y + tolerance), (w, ref_y + tolerance), (0, 255, 0), 2
             )
             cv2.line(frame, (0, ref_y), (w, ref_y), (0, 255, 255), 2)

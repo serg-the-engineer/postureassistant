@@ -4,6 +4,7 @@ import os
 import sys
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
 
+
 class CameraService(QThread):
     frame_ready = pyqtSignal(np.ndarray)
 
@@ -25,7 +26,7 @@ class CameraService(QThread):
             ret, frame = self.cap.read()
             if ret:
                 self.frame_ready.emit(cv2.flip(frame, 1))
-            
+
             sleep_duration = 100 if self._is_ui_visible else 1000
             self.msleep(sleep_duration)  # Dynamic FPS
 
@@ -47,51 +48,71 @@ class CameraService(QThread):
         """
         Checks for available cameras up to a given limit.
         Returns a list of dicts, each with 'id' and 'name'.
-        Uses platform-specific libraries for friendly names.
+        Tries to use platform-specific libraries for friendly names first.
+        If that fails or returns no cameras, it falls back to a generic
+        method that is more reliable for indexing but has generic names.
+        This prevents duplicate entries and provides a working fallback.
         """
-        available_cameras = []
-
-        if sys.platform == "win32":
-            try:
+        # --- Attempt platform-specific methods first ---
+        try:
+            platform_specific_cameras = []
+            if sys.platform == "win32":
                 from pygrabber.dshow_graph import DSShowEvent
-                devices = DSShowEvent()
-                video_devices = devices.get_input_devices()
-                for i, name in enumerate(video_devices):
-                    available_cameras.append({'id': i, 'name': name})
-                if available_cameras:
-                    return available_cameras
-            except (ImportError, Exception) as e:
-                print(f"INFO: Could not use pygrabber ({e}), falling back to index-based camera names.")
 
-        elif sys.platform == "darwin": # macOS
-            try:
+                devices = DSShowEvent().get_input_devices()
+                for i, name in enumerate(devices):
+                    # Use CAP_DSHOW for more reliable device access on Windows
+                    cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                    if cap.isOpened():
+                        platform_specific_cameras.append({"id": i, "name": name})
+                        cap.release()
+
+            elif sys.platform == "darwin":
                 from AVFoundation import AVCaptureDevice, AVMediaTypeVideo
+
                 devices = AVCaptureDevice.devicesWithMediaType_(AVMediaTypeVideo)
                 for i, device in enumerate(devices):
-                    available_cameras.append({'id': i, 'name': device.localizedName()})
-                if available_cameras:
-                    return available_cameras
-            except (ImportError, Exception) as e:
-                print(f"INFO: Could not use AVFoundation ({e}), falling back to index-based camera names.")
+                    cap = cv2.VideoCapture(i)
+                    if cap.isOpened():
+                        platform_specific_cameras.append(
+                            {"id": i, "name": device.localizedName()}
+                        )
+                        cap.release()
 
-        elif sys.platform.startswith("linux"):
-            try:
-                video_devices = [dev for dev in os.listdir('/sys/class/video4linux') if dev.startswith('video')]
+            elif sys.platform.startswith("linux"):
+                # This method is generally reliable on Linux
+                video_devices = [
+                    dev
+                    for dev in os.listdir("/sys/class/video4linux")
+                    if dev.startswith("video")
+                ]
                 for dev_name in sorted(video_devices):
-                    dev_path = os.path.join('/sys/class/video4linux', dev_name)
-                    with open(os.path.join(dev_path, 'name'), 'r') as f:
-                        name = f.read().strip()
-                    index = int(dev_name.replace('video', ''))
-                    available_cameras.append({'id': index, 'name': f"{name} ({dev_name})"})
-                if available_cameras:
-                    return available_cameras
-            except (IOError, FileNotFoundError, ValueError) as e:
-                print(f"INFO: Could not read from /sys/class/video4linux ({e}), falling back to index-based camera names.")
+                    index = int(dev_name.replace("video", ""))
+                    cap = cv2.VideoCapture(index)
+                    if cap.isOpened():
+                        platform_specific_cameras.append(
+                            {"id": index, "name": f"Camera {index}"}
+                        )
+                        cap.release()
 
-        # Fallback if platform-specific methods fail or for other OS
+            # If the platform-specific method found any cameras, return them.
+            if platform_specific_cameras:
+                return platform_specific_cameras
+
+        except Exception as e:
+            print(f"INFO: Platform-specific camera detection failed ({e}).")
+
+        # --- Fallback method ---
+        # This part is reached ONLY if the platform-specific methods failed or found no cameras.
+        print("INFO: Falling back to generic camera detection method.")
+        fallback_cameras = []
         for i in range(limit):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
-                available_cameras.append({'id': i, 'name': f"Camera {i}"})
+                fallback_cameras.append({"id": i, "name": f"Camera {i}"})
                 cap.release()
-        return available_cameras
+            else:
+                # Assume camera indices are contiguous. Stop after the first failure.
+                # This prevents spamming stderr with "out of bound" errors.
+                break
+        return fallback_cameras
