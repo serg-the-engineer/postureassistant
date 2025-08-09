@@ -3,19 +3,23 @@
 
 import sys
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
 from .main_window import MainWindow
+
 
 def main():
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon("assets/vibestand.png"))
+    app.setApplicationName("Vibestand")
+    app.setApplicationVersion("1.0.0")
     try:
         window = MainWindow()
         window.show()
         sys.exit(app.exec())
-    except IOError as e:
-        print(f"FATAL ERROR: {e}")
-        print("Please ensure 'assets/haarcascade_frontalface_default.xml' exists.")
-        print("Run the execute.sh script to download it.")
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

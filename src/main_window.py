@@ -26,7 +26,6 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Vibestand - Posture Assistant")
-        self.setWindowIcon(QIcon("assets/icon.png"))
         self.setGeometry(100, 100, 800, 600)
 
         # --- Services ---
