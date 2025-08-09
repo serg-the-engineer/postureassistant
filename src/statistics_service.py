@@ -1,10 +1,18 @@
+import os
 import sqlite3
 import time
 from datetime import datetime, date
 from .processing_service import PostureStatus
+from PyQt6.QtCore import QStandardPaths
+
 
 class StatisticsService:
     def __init__(self, db_path="statistics.db"):
+        app_data_path = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppDataLocation
+        )
+        os.makedirs(app_data_path, exist_ok=True)
+        db_path = os.path.join(app_data_path, db_path)
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._create_table()
         self.current_status = PostureStatus.NOT_DETECTED
@@ -12,7 +20,8 @@ class StatisticsService:
 
     def _create_table(self):
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS posture_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 start_timestamp REAL NOT NULL,
@@ -20,7 +29,8 @@ class StatisticsService:
                 duration_seconds REAL NOT NULL,
                 state TEXT NOT NULL
             )
-        """)
+        """
+        )
         self.conn.commit()
 
     def handle_status_update(self, new_status: PostureStatus):
@@ -29,8 +39,13 @@ class StatisticsService:
             duration = now - self.last_status_change_time
             # Log the previous state's duration, but only if it's meaningful
             if self.current_status in [PostureStatus.CORRECT, PostureStatus.INCORRECT]:
-                self._log_entry(self.last_status_change_time, now, duration, self.current_status.name)
-            
+                self._log_entry(
+                    self.last_status_change_time,
+                    now,
+                    duration,
+                    self.current_status.name,
+                )
+
             # Reset for the new state
             self.current_status = new_status
             self.last_status_change_time = now
@@ -39,7 +54,7 @@ class StatisticsService:
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT INTO posture_log (start_timestamp, end_timestamp, duration_seconds, state) VALUES (?, ?, ?, ?)",
-            (start, end, duration, state)
+            (start, end, duration, state),
         )
         self.conn.commit()
 
@@ -48,9 +63,9 @@ class StatisticsService:
         cursor = self.conn.cursor()
         cursor.execute(
             "SELECT state, SUM(duration_seconds) FROM posture_log WHERE start_timestamp >= ? GROUP BY state",
-            (today_start,)
+            (today_start,),
         )
-        summary = { 'CORRECT': 0, 'INCORRECT': 0 }
+        summary = {"CORRECT": 0, "INCORRECT": 0}
         for row in cursor.fetchall():
             state, total_duration = row
             if state in summary:

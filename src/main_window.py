@@ -30,6 +30,7 @@ from .settings_service import SettingsService
 from .notification_service import NotificationService
 from .statistics_service import StatisticsService
 from .statistics_window import StatisticsWindow
+from .utils import resource_path
 
 
 class MainWindow(QMainWindow):
@@ -50,7 +51,7 @@ class MainWindow(QMainWindow):
 
         # --- System Tray and Notifications ---
         self.tray_icon = QSystemTrayIcon(
-            QIcon("assets/icon.png"), self
+            QIcon(resource_path("assets/icon.png")), self
         )  # Assumes icon exists
         self.tray_icon.setToolTip("Posture Assistant")
         self.notification_service = NotificationService(
@@ -188,7 +189,7 @@ class MainWindow(QMainWindow):
 
     def update_status(self, status: PostureStatus):
         # Update tray icon
-        base_pixmap = QPixmap("assets/icon.png")
+        base_pixmap = QPixmap(resource_path("assets/icon.png"))
         if not base_pixmap.isNull():
             painter = QPainter(base_pixmap)
             dot_color = None

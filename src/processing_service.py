@@ -2,11 +2,14 @@ import cv2
 import numpy as np
 from enum import Enum, auto
 from PyQt6.QtCore import QObject, pyqtSignal
+from .utils import resource_path
+
 
 class PostureStatus(Enum):
     CORRECT = auto()
     INCORRECT = auto()
     NOT_DETECTED = auto()
+
 
 class ProcessingService(QObject):
     status_updated = pyqtSignal(PostureStatus)
@@ -16,10 +19,11 @@ class ProcessingService(QObject):
         super().__init__(parent)
         self.settings = settings_service
         self._is_active = False
-        self.face_cascade = cv2.CascadeClassifier('assets/haarcascade_frontalface_default.xml')
+        cascade_path = resource_path("assets/haarcascade_frontalface_default.xml")
+        self.face_cascade = cv2.CascadeClassifier(cascade_path)
         if self.face_cascade.empty():
             raise IOError("Could not load haarcascade_frontalface_default.xml")
-        
+
         self.calibration_data = self.settings.get_calibration_data()
         self._is_calibrating = False
 
@@ -43,31 +47,41 @@ class ProcessingService(QObject):
         status = PostureStatus.NOT_DETECTED
         if len(faces) > 0:
             x, y, w, h = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
-            
+
             if self._is_calibrating:
                 # Cast numpy.int32 to python int to avoid JSON serialization error
                 ref_y_int = int(y)
-                self.calibration_data['reference_y'] = ref_y_int
-                self.settings.set_calibration_data(ref_y_int, self.calibration_data['tolerance_pixels'])
+                self.calibration_data["reference_y"] = ref_y_int
+                self.settings.set_calibration_data(
+                    ref_y_int, self.calibration_data["tolerance_pixels"]
+                )
                 self._is_calibrating = False
 
-            ref_y = self.calibration_data.get('reference_y')
+            ref_y = self.calibration_data.get("reference_y")
             if ref_y is not None:
-                tolerance = self.calibration_data.get('tolerance_pixels', 50)
-                status = PostureStatus.CORRECT if abs(y - ref_y) <= tolerance else PostureStatus.INCORRECT
-            
+                tolerance = self.calibration_data.get("tolerance_pixels", 50)
+                status = (
+                    PostureStatus.CORRECT
+                    if abs(y - ref_y) <= tolerance
+                    else PostureStatus.INCORRECT
+                )
+
             color = (0, 255, 0) if status == PostureStatus.CORRECT else (0, 0, 255)
-            cv2.rectangle(output_frame, (x, y), (x+w, y+h), color, 2)
+            cv2.rectangle(output_frame, (x, y), (x + w, y + h), color, 2)
 
         self._draw_overlays(output_frame)
         self.status_updated.emit(status)
         self.processed_frame_ready.emit(output_frame)
 
     def _draw_overlays(self, frame: np.ndarray):
-        ref_y = self.calibration_data.get('reference_y')
+        ref_y = self.calibration_data.get("reference_y")
         if ref_y is not None:
-            tolerance = self.calibration_data.get('tolerance_pixels', 50)
+            tolerance = self.calibration_data.get("tolerance_pixels", 50)
             w = frame.shape[1]
-            cv2.line(frame, (0, ref_y - tolerance), (w, ref_y - tolerance), (0, 255, 0), 1)
-            cv2.line(frame, (0, ref_y + tolerance), (w, ref_y + tolerance), (0, 255, 0), 1)
+            cv2.line(
+                frame, (0, ref_y - tolerance), (w, ref_y - tolerance), (0, 255, 0), 1
+            )
+            cv2.line(
+                frame, (0, ref_y + tolerance), (w, ref_y + tolerance), (0, 255, 0), 1
+            )
             cv2.line(frame, (0, ref_y), (w, ref_y), (0, 255, 255), 2)

@@ -2,6 +2,7 @@ from PyQt6.QtCore import QObject, QTimer, QUrl
 from PyQt6.QtWidgets import QSystemTrayIcon
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from .processing_service import PostureStatus
+from .utils import resource_path
 
 
 class NotificationService(QObject):
@@ -16,7 +17,9 @@ class NotificationService(QObject):
         self.media_player = QMediaPlayer(self)
         self.audio_output = QAudioOutput(self)
         self.media_player.setAudioOutput(self.audio_output)
-        sound_file = self.settings.get("notification_sound_file", "assets/wilhelm.ogg")
+        sound_file = self.settings.get(
+            "notification_sound_file", resource_path("assets/wilhelm.ogg")
+        )
         self.media_player.setSource(QUrl.fromLocalFile(sound_file))
 
     def handle_status_update(self, status: PostureStatus):

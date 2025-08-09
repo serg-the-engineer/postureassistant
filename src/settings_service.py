@@ -1,11 +1,18 @@
 import json
 import os
 from typing import Dict, Any
+from PyQt6.QtCore import QStandardPaths
+from .utils import resource_path
 
 
 class SettingsService:
     def __init__(self, filename: str = "settings.json"):
-        self.filepath = filename
+        app_data_path = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppDataLocation
+        )
+        # Убедимся, что директория существует
+        os.makedirs(app_data_path, exist_ok=True)
+        self.filepath = os.path.join(app_data_path, filename)
         self.settings = self._load()
 
     def _load(self) -> Dict[str, Any]:
@@ -35,7 +42,7 @@ class SettingsService:
             "calibration_data": {"reference_y": None, "tolerance_pixels": 50},
             "notifications_enabled": True,
             "notification_delay_seconds": 1800,
-            "notification_sound_file": "assets/wilhelm.ogg",
+            "notification_sound_file": resource_path("assets/wilhelm.ogg"),
         }
 
     def get_calibration_data(self) -> Dict[str, Any]:
