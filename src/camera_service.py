@@ -39,7 +39,7 @@ class CameraService(QThread):
         """
         Checks for available cameras up to a given limit.
         Returns a list of dicts, each with 'id' and 'name'.
-        Uses pygrabber on Windows for friendly names, otherwise uses index.
+        Uses platform-specific libraries for friendly names.
         """
         available_cameras = []
 
@@ -54,8 +54,19 @@ class CameraService(QThread):
                     return available_cameras
             except (ImportError, Exception) as e:
                 print(f"INFO: Could not use pygrabber ({e}), falling back to index-based camera names.")
+        
+        elif sys.platform == "darwin": # macOS
+            try:
+                from AVFoundation import AVCaptureDevice, AVMediaTypeVideo
+                devices = AVCaptureDevice.devicesWithMediaType_(AVMediaTypeVideo)
+                for i, device in enumerate(devices):
+                    available_cameras.append({'id': i, 'name': device.localizedName()})
+                if available_cameras:
+                    return available_cameras
+            except (ImportError, Exception) as e:
+                print(f"INFO: Could not use AVFoundation ({e}), falling back to index-based camera names.")
 
-        # Fallback for non-Windows or if pygrabber fails
+        # Fallback for Linux or if platform-specific methods fail
         for i in range(limit):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():

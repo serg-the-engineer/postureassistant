@@ -2,4 +2,5 @@ PyQt6
 opencv-python
 numpy
 pygrabber; platform_system == "Windows"
+pyobjc-framework-avfoundation; platform_system == "Darwin"
 matplotlib

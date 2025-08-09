@@ -1,9 +1,9 @@
 import numpy as np
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QPushButton, QLabel, QComboBox, QSystemTrayIcon, QMenu,
-                             QApplication)
+                             QPushButton, QLabel, QComboBox, QSystemTrayIcon, QMenu, QApplication)
 from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction
 from PyQt6.QtCore import Qt, QThread
+from PyQt6.QtCore import Qt
 
 from .camera_service import CameraService
 from .processing_service import ProcessingService, PostureStatus
@@ -16,6 +16,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Vibestand - Posture Assistant")
+        self.setWindowIcon(QIcon("assets/icon.png"))
         self.setGeometry(100, 100, 800, 600)
 
         # --- Services ---
@@ -42,13 +43,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
         
-        # Camera selection
-        camera_layout = QHBoxLayout()
+        # Controls
+        controls_layout = QHBoxLayout()
+        controls_layout.addWidget(QLabel("Camera:"))
         self.camera_combo = QComboBox()
-        self.populate_camera_list()
-        camera_layout.addWidget(QLabel("Camera:"))
-        camera_layout.addWidget(self.camera_combo)
-        self.layout.addLayout(camera_layout)
+        controls_layout.addWidget(self.camera_combo)
+        controls_layout.addSpacing(20)
 
         self.video_label = QLabel("Camera feed will appear here.")
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -56,8 +56,6 @@ class MainWindow(QMainWindow):
         self.video_label.setStyleSheet("background-color: black; color: white;")
         self.layout.addWidget(self.video_label)
 
-        # Controls
-        controls_layout = QHBoxLayout()
         self.start_stop_button = QPushButton("Start")
         self.calibrate_button = QPushButton("Calibrate")
         self.calibrate_button.setEnabled(False)
@@ -72,11 +70,17 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.status_label)
         self.layout.addLayout(controls_layout)
 
+        self.video_label = QLabel("Camera feed will appear here.")
+        self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.video_label.setMinimumSize(640, 480)
+        self.video_label.setStyleSheet("background-color: black; color: white;")
+        self.layout.addWidget(self.video_label)
+
         # Connect signals/slots
         self.start_stop_button.clicked.connect(self.toggle_monitoring)
         self.calibrate_button.clicked.connect(self.processing_service.start_calibration)
-        self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
         self.stats_button.clicked.connect(self.show_statistics)
+        self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
         
         self.camera_service.frame_ready.connect(self.processing_service.process_frame)
@@ -84,6 +88,9 @@ class MainWindow(QMainWindow):
         self.processing_service.status_updated.connect(self.update_status)
         self.processing_service.status_updated.connect(self.notification_service.handle_status_update)
         self.processing_service.status_updated.connect(self.statistics_service.handle_status_update)
+
+        # Populate camera list after all connections are set up
+        self.populate_camera_list()
 
     def populate_camera_list(self):
         self.camera_combo.blockSignals(True)
@@ -183,8 +190,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         event.ignore()
         self.hide()
-        self.tray_icon.showMessage("Still running", "Vibestand is running in the system tray.", 
-                                 QSystemTrayIcon.MessageIcon.Information, 2000)
+        if self.tray_icon.isVisible():
+            self.tray_icon.showMessage("Still running", "Vibestand is running in the system tray.", 
+                                     QSystemTrayIcon.MessageIcon.Information, 2000)
 
     def quit_application(self):
         self.camera_service.stop()
