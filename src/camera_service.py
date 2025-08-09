@@ -61,39 +61,29 @@ class CameraService(QThread):
 
                 devices = DSShowEvent().get_input_devices()
                 for i, name in enumerate(devices):
-                    # Use CAP_DSHOW for more reliable device access on Windows
-                    cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-                    if cap.isOpened():
-                        platform_specific_cameras.append({"id": i, "name": name})
-                        cap.release()
+                    platform_specific_cameras.append({"id": i, "name": name})
 
             elif sys.platform == "darwin":
                 from AVFoundation import AVCaptureDevice, AVMediaTypeVideo
 
                 devices = AVCaptureDevice.devicesWithMediaType_(AVMediaTypeVideo)
                 for i, device in enumerate(devices):
-                    cap = cv2.VideoCapture(i)
-                    if cap.isOpened():
-                        platform_specific_cameras.append(
-                            {"id": i, "name": device.localizedName()}
-                        )
-                        cap.release()
+                    platform_specific_cameras.append(
+                        {"id": i, "name": device.localizedName()}
+                    )
 
             elif sys.platform.startswith("linux"):
-                # This method is generally reliable on Linux
+                # This method is generally reliable on Linux but may list non-camera devices.
                 video_devices = [
                     dev
-                    for dev in os.listdir("/sys/class/video4linux")
-                    if dev.startswith("video")
+                    for dev in os.listdir('/sys/class/video4linux')
+                    if dev.startswith('video')
                 ]
                 for dev_name in sorted(video_devices):
-                    index = int(dev_name.replace("video", ""))
-                    cap = cv2.VideoCapture(index)
-                    if cap.isOpened():
-                        platform_specific_cameras.append(
-                            {"id": index, "name": f"Camera {index}"}
-                        )
-                        cap.release()
+                    index = int(dev_name.replace('video', ''))
+                    platform_specific_cameras.append(
+                        {"id": index, "name": f"Camera {index}"}
+                    )
 
             # If the platform-specific method found any cameras, return them.
             if platform_specific_cameras:
