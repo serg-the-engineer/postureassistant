@@ -1,15 +1,15 @@
 import numpy as np
 from PyQt6.QtWidgets import (
     QMainWindow,
-    QWidget,
     QVBoxLayout,
-    QHBoxLayout,
+    QWidget,
     QPushButton,
     QLabel,
     QComboBox,
     QSystemTrayIcon,
     QMenu,
     QApplication,
+    QHBoxLayout,
 )
 from PyQt6.QtGui import (
     QImage,
@@ -22,7 +22,7 @@ from PyQt6.QtGui import (
     QShowEvent,
     QHideEvent,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 
 from .camera_service import CameraService
 from .processing_service import ProcessingService, PostureStatus
@@ -39,31 +39,49 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.settings_service = SettingsService()
+        self.statistics_service = StatisticsService()
         self.setWindowTitle("Posture Assistant")
         self.setGeometry(100, 100, 800, 600)
 
         # --- Services ---
-        self.settings_service = SettingsService()
-        self.statistics_service = StatisticsService()
         self.camera_service = CameraService(
             camera_id=self.settings_service.get("camera_id", 0)
         )
         self.processing_service = ProcessingService(self.settings_service)
+        self.current_status = PostureStatus.NOT_DETECTED
 
         # --- System Tray and Notifications ---
         self.tray_icon = QSystemTrayIcon(
-            QIcon(resource_path("assets/icon.png")), self
-        )  # Assumes icon exists
+            QIcon(resource_path("assets/icon.png")), parent=self
+        )
         self.tray_icon.setToolTip("Posture Assistant")
-        self.notification_service = NotificationService(
-            self.tray_icon, self.settings_service
+        self.tray_icon.activated.connect(
+            lambda reason: (
+                self.show()
+                if reason == QSystemTrayIcon.ActivationReason.DoubleClick
+                else None
+            )
         )
         self.setup_tray_menu()
         self.tray_icon.show()
 
+        # --- Blinking Logic ---
+        self.incorrect_posture_timer = QTimer(self)
+        self.incorrect_posture_timer.setSingleShot(True)
+        self.incorrect_posture_timer.timeout.connect(self._start_blinking)
+
+        self.blinking_timer = QTimer(self)
+        self.blinking_timer.timeout.connect(self._blink_tray_icon)
+        self._is_blinking = False
+        self._blink_state = 0  # 0 for red, 1 for orange
+
         # --- Threading ---
         self.processing_thread = QThread()
         self.processing_service.moveToThread(self.processing_thread)
+        self.notification_service = NotificationService(
+            self.tray_icon, self.settings_service
+        )
         self.notification_service.moveToThread(
             self.processing_thread
         )  # Can run in the same thread
@@ -123,6 +141,7 @@ class MainWindow(QMainWindow):
         self.stats_button.clicked.connect(self.show_statistics)
         self.settings_button.clicked.connect(self.show_settings)
         self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
+
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
         self.camera_service.frame_ready.connect(self.processing_service.process_frame)
@@ -191,34 +210,61 @@ class MainWindow(QMainWindow):
             pixmap.scaled(self.video_label.size(), Qt.AspectRatioMode.KeepAspectRatio)
         )
 
-    def update_status(self, status: PostureStatus):
+    def _start_blinking(self):
+        """Starts the tray icon blinking process."""
+        # Check if we should still be blinking
+        if (
+            self.current_status == PostureStatus.INCORRECT
+            and self.camera_service.isRunning()
+        ):
+            self._is_blinking = True
+            self._blink_state = 0
+            self.blinking_timer.start(500)  # Toggle every 500ms
+            self._blink_tray_icon()  # Force initial draw
+
+    def _stop_blinking(self):
+        """Stops the tray icon blinking."""
+        self._is_blinking = False
+        self.blinking_timer.stop()
+
+    def _blink_tray_icon(self):
+        """Slot for the blinking timer. Toggles color and redraws icon."""
+        self._blink_state = 1 - self._blink_state  # Toggle 0 and 1
+        self._update_tray_icon(self.current_status)
+
+    def _update_tray_icon(self, status: PostureStatus):
         # Update tray icon
         base_pixmap = QPixmap(resource_path("assets/icon.png"))
-        if not base_pixmap.isNull():
-            painter = QPainter(base_pixmap)
-            dot_color = None
+        if base_pixmap.isNull():
+            return
 
-            if self.camera_service.isRunning():
-                if status == PostureStatus.CORRECT:
-                    dot_color = QColor("lightgreen")
-                elif status == PostureStatus.INCORRECT:
-                    dot_color = QColor("red")
-                elif status == PostureStatus.NOT_DETECTED:
-                    dot_color = QColor("yellow")
+        painter = QPainter(base_pixmap)
+        dot_color = None
 
-            if dot_color:
-                radius = max(2, base_pixmap.width() // 8)
-                margin = max(1, base_pixmap.width() // 8)
-                x = base_pixmap.width() - (2 * radius) - margin
-                y = base_pixmap.height() - (2 * radius) - margin
+        if self._is_blinking:
+            dot_color = QColor("red") if self._blink_state == 0 else QColor("orange")
+        elif self.camera_service.isRunning():
+            if status == PostureStatus.CORRECT:
+                dot_color = QColor("lightgreen")
+            elif status == PostureStatus.INCORRECT:
+                dot_color = QColor("red")
+            elif status == PostureStatus.NOT_DETECTED:
+                dot_color = QColor("yellow")
 
-                painter.setBrush(QBrush(dot_color))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawEllipse(x, y, 3 * radius, 3 * radius)
+        if dot_color:
+            radius = max(2, base_pixmap.width() // 8)
+            margin = max(1, base_pixmap.width() // 8)
+            x = base_pixmap.width() - (2 * radius) - margin
+            y = base_pixmap.height() - (2 * radius) - margin
 
-            painter.end()
-            self.tray_icon.setIcon(QIcon(base_pixmap))
+            painter.setBrush(QBrush(dot_color))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(x, y, 3 * radius, 3 * radius)
 
+        painter.end()
+        self.tray_icon.setIcon(QIcon(base_pixmap))
+
+    def _update_status_label(self, status: PostureStatus):
         # Update status label in main window
         if not self.camera_service.isRunning():
             self.status_label.setText("Status: Not Running")
@@ -238,6 +284,26 @@ class MainWindow(QMainWindow):
             else:
                 self.status_label.setText("Status: Face Not Detected")
                 self.status_label.setStyleSheet("color: orange;")
+
+    def update_status(self, status: PostureStatus):
+        self.current_status = status
+
+        # --- Blinking Logic ---
+        if status == PostureStatus.INCORRECT:
+            if not self.incorrect_posture_timer.isActive() and not self._is_blinking:
+                threshold_ms = (
+                    self.settings_service.get("blinking_threshold_seconds", 300) * 1000
+                )
+                self.incorrect_posture_timer.start(threshold_ms)
+        else:
+            # Status is not incorrect, so stop any pending or active blinking.
+            self.incorrect_posture_timer.stop()
+            if self._is_blinking:
+                self._stop_blinking()
+
+        # --- UI Updates ---
+        self._update_tray_icon(status)
+        self._update_status_label(status)
 
     def setup_tray_menu(self):
         tray_menu = QMenu()

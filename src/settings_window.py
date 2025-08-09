@@ -41,9 +41,17 @@ class SettingsWindow(QDialog):
         notifications_layout.addRow(self.notifications_enabled_checkbox)
 
         self.delay_spinbox = QSpinBox()
-        self.delay_spinbox.setRange(5, 7200)  # 5 seconds to 2 hours
+        self.delay_spinbox.setRange(10, 86400)  # 1 second to 24 hours
+        self.delay_spinbox.setSingleStep(60)  # 1 minute steps
         self.delay_spinbox.setSuffix(" seconds")
         notifications_layout.addRow("Notification Delay:", self.delay_spinbox)
+
+        # Add blinking threshold setting
+        self.blinking_threshold_spinbox = QSpinBox()
+        self.blinking_threshold_spinbox.setRange(10, 3600)  # 10 seconds to 1 hour
+        self.blinking_threshold_spinbox.setSingleStep(10)  # 10 second steps
+        self.blinking_threshold_spinbox.setSuffix(" seconds")
+        notifications_layout.addRow("Tray Icon Blink Delay:", self.blinking_threshold_spinbox)
 
         notifications_group.setLayout(notifications_layout)
         layout.addWidget(notifications_group)
@@ -70,6 +78,9 @@ class SettingsWindow(QDialog):
         self.delay_spinbox.setValue(
             self.settings_service.get("notification_delay_seconds", 1800)
         )
+        self.blinking_threshold_spinbox.setValue(
+            self.settings_service.get("blinking_threshold_seconds", 300)
+        )
 
     def accept(self):
         """Saves the settings and closes the dialog."""
@@ -82,6 +93,9 @@ class SettingsWindow(QDialog):
         )
         self.settings_service.set(
             "notification_delay_seconds", self.delay_spinbox.value()
+        )
+        self.settings_service.set(
+            "blinking_threshold_seconds", self.blinking_threshold_spinbox.value()
         )
 
         super().accept()

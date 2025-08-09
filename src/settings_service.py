@@ -42,6 +42,7 @@ class SettingsService:
             "calibration_data": {"reference_y": None, "tolerance_pixels": 50},
             "notifications_enabled": True,
             "notification_delay_seconds": 1800,
+            "blinking_threshold_seconds": 300,
             "notification_sound_file": resource_path("assets/wilhelm.ogg"),
         }
 
