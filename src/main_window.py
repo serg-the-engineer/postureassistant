@@ -64,6 +64,7 @@ class MainWindow(QMainWindow):
         self.incorrect_posture_timer = QTimer(self)
         self.incorrect_posture_timer.setSingleShot(True)
         self.incorrect_posture_timer.timeout.connect(self._start_blinking)
+        self.incorrect_timer_remaining_ms = -1  # For pausing the timer
 
         self.blinking_timer = QTimer(self)
         self.blinking_timer.timeout.connect(self._blink_tray_icon)
@@ -307,14 +308,32 @@ class MainWindow(QMainWindow):
 
         # --- Blinking Logic ---
         if status == PostureStatus.INCORRECT:
+            # If timer isn't running and we aren't blinking, start or resume it.
             if not self.incorrect_posture_timer.isActive() and not self._is_blinking:
-                threshold_ms = (
-                    self.settings_service.get("blinking_threshold_seconds", 300) * 1000
+                # If we have a remaining time, it means we're resuming from a pause.
+                if self.incorrect_timer_remaining_ms > 0:
+                    self.incorrect_posture_timer.start(
+                        self.incorrect_timer_remaining_ms
+                    )
+                else:
+                    # Otherwise, start a fresh timer.
+                    threshold_ms = (
+                        self.settings_service.get("blinking_threshold_seconds", 300)
+                        * 1000
+                    )
+                    self.incorrect_posture_timer.start(threshold_ms)
+                self.incorrect_timer_remaining_ms = -1  # Reset remaining time after use
+        elif status == PostureStatus.NOT_DETECTED:
+            # If face is lost while timer is counting down, pause it.
+            if self.incorrect_posture_timer.isActive():
+                self.incorrect_timer_remaining_ms = (
+                    self.incorrect_posture_timer.remainingTime()
                 )
-                self.incorrect_posture_timer.start(threshold_ms)
-        else:
-            # Status is not incorrect, so stop any pending or active blinking.
+                self.incorrect_posture_timer.stop()
+        elif status == PostureStatus.CORRECT:
+            # Correct posture resets everything.
             self.incorrect_posture_timer.stop()
+            self.incorrect_timer_remaining_ms = -1
             if self._is_blinking:
                 self._stop_blinking()
 

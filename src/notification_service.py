@@ -13,6 +13,7 @@ class NotificationService(QObject):
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.show_notification)
+        self.notification_timer_remaining_ms = -1  # For pausing the timer
         self.current_status = PostureStatus.NOT_DETECTED
         self.media_player = QMediaPlayer(self)
         self.audio_output = QAudioOutput(self)
@@ -25,12 +26,27 @@ class NotificationService(QObject):
     def handle_status_update(self, status: PostureStatus):
         self.current_status = status
         if status == PostureStatus.INCORRECT:
+            # If timer isn't running, start or resume it.
             if not self.timer.isActive():
-                delay_ms = self.settings.get("notification_delay_seconds", 10) * 1000
-                self.timer.start(delay_ms)
-        else:
+                # If we have a remaining time, it means we're resuming from a pause.
+                if self.notification_timer_remaining_ms > 0:
+                    self.timer.start(self.notification_timer_remaining_ms)
+                else:
+                    # Otherwise, start a fresh timer.
+                    delay_ms = (
+                        self.settings.get("notification_delay_seconds", 10) * 1000
+                    )
+                    self.timer.start(delay_ms)
+                self.notification_timer_remaining_ms = -1  # Reset after use
+        elif status == PostureStatus.NOT_DETECTED:
+            # If face is lost while timer is counting down, pause it.
             if self.timer.isActive():
+                self.notification_timer_remaining_ms = self.timer.remainingTime()
                 self.timer.stop()
+        elif status == PostureStatus.CORRECT:
+            # Correct posture resets the timer.
+            self.timer.stop()
+            self.notification_timer_remaining_ms = -1
 
     def show_notification(self):
         if self.current_status == PostureStatus.INCORRECT and self.settings.get(

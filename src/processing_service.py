@@ -33,7 +33,7 @@ class ProcessingService(QObject):
         self.analysis_timer.timeout.connect(self._analyze_frame)
 
     def _update_timer_state(self):
-        interval = 200 if self._is_visible else 1500
+        interval = 250 if self._is_visible else 1500
         self.analysis_timer.start(interval)
 
     @pyqtSlot(bool)
