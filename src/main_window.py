@@ -11,9 +11,8 @@ from PyQt6.QtWidgets import (
     QMenu,
     QApplication,
 )
-from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction
+from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction, QPainter, QColor, QBrush
 from PyQt6.QtCore import Qt, QThread
-from PyQt6.QtCore import Qt
 
 from .camera_service import CameraService
 from .processing_service import ProcessingService, PostureStatus
@@ -173,6 +172,34 @@ class MainWindow(QMainWindow):
         )
 
     def update_status(self, status: PostureStatus):
+        # Update tray icon
+        base_pixmap = QPixmap("assets/icon.png")
+        if not base_pixmap.isNull():
+            painter = QPainter(base_pixmap)
+            dot_color = None
+
+            if self.camera_service.isRunning():
+                if status == PostureStatus.CORRECT:
+                    dot_color = QColor("lightgreen")
+                elif status == PostureStatus.INCORRECT:
+                    dot_color = QColor("red")
+                elif status == PostureStatus.NOT_DETECTED:
+                    dot_color = QColor("yellow")
+
+            if dot_color:
+                radius = max(2, base_pixmap.width() // 8)
+                margin = max(1, base_pixmap.width() // 8)
+                x = base_pixmap.width() - (2 * radius) - margin
+                y = base_pixmap.height() - (2 * radius) - margin
+
+                painter.setBrush(QBrush(dot_color))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.drawEllipse(x, y, 3 * radius, 3 * radius)
+
+            painter.end()
+            self.tray_icon.setIcon(QIcon(base_pixmap))
+
+        # Update status label in main window
         if not self.camera_service.isRunning():
             self.status_label.setText("Status: Not Running")
             self.status_label.setStyleSheet("color: gray;")
